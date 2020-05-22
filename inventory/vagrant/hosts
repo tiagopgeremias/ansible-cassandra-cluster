@@ -1,0 +1,15 @@
+[all:vars]
+ansible_user=vagrant
+data_directory=/cassandra/data
+commitlog_directory=/cassandra/commitlog
+
+[cassandra_cluster:children]
+cassandra_seed_node
+cassandra_commom_node
+
+[cassandra_seed_node]
+192.168.41.20 data_disk=sdb commitlog_disk=sdc
+192.168.41.21 data_disk=sdb commitlog_disk=sdc
+
+[cassandra_commom_node]
+192.168.41.22 data_disk=sdb commitlog_disk=sdc

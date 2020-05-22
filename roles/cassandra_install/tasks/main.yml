@@ -1,0 +1,9 @@
+- name: Create repository
+  template:
+    src: cassandra.repo
+    dest: /etc/yum.repos.d/cassandra.repo
+
+- name: Install Cassandra
+  yum:
+    name: cassandra
+    state: present

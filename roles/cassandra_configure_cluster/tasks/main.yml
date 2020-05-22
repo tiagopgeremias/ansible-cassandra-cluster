@@ -1,0 +1,53 @@
+- name: Permission Cassandra Data
+  file:
+    path: /cassandra
+    owner: cassandra
+    group: cassandra
+    recurse: yes
+    state: directory
+
+- name: Get Seed Nodes
+  set_fact:
+    result_item: '{{ item }}'
+  with_items:
+    - "{{ groups['cassandra_seed_node'] }}"
+  register: result_list
+
+- name: Concat Seed Nodes
+  set_fact:
+    result_item: '{{ result_list.results | map(attribute="ansible_facts.result_item") | join(",") }}'
+  register: seed_nodes
+
+- name: Copy cassandra config file
+  template:
+    src: cassandra.yaml.j2
+    dest: /etc/cassandra/conf/cassandra.yaml
+    mode: '0644'
+
+- name: Create systemd service
+  template:
+    src: cassandra.service
+    dest: /usr/lib/systemd/system/cassandra.service
+
+
+- name: Start Cassandra Service
+  systemd:
+    daemon_reload: yes
+    name: cassandra
+    state: started
+    enabled: yes
+
+- name: Loading Cassandra up
+  pause:
+    seconds: 59
+  when: add_node is not defined
+
+- name: Create Super user
+  shell: cqlsh {{ inventory_hostname }} -u cassandra -p cassandra -e "CREATE ROLE {{ user_admin }} with SUPERUSER = true AND LOGIN = true and PASSWORD = '{{ pass_admin }}';"
+  run_once: true
+  when: inventory_hostname in groups['cassandra_seed_node'] and add_node is not defined
+
+- name: Delete default Super user
+  shell: cqlsh {{ inventory_hostname }} -u {{ user_admin }} -p {{ pass_admin }} -e "DROP ROLE cassandra;"
+  run_once: true
+  when: inventory_hostname in groups['cassandra_seed_node'] and add_node is not defined

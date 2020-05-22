@@ -1,0 +1,50 @@
+- name: Disable Selinux
+  template:
+    src: selinux
+    dest: /etc/selinux/config
+    owner: root
+    group: root
+    mode: '0644'
+  register: disable_selinux
+
+- name: Enable Noop Scheduler Cassandra Data
+  shell: "echo 'noop' > /sys/block/{{ data_disk }}/queue/scheduler"
+
+- name: Maximum number of read and write for Cassandra Commitlog
+  shell: echo 2 > /sys/block/{{ commitlog_disk }}/queue/nr_requests
+
+- name: Maximum number of read and write for Cassandra Data
+  shell:  echo 1024 > /sys/block/{{ data_disk }}/queue/nr_requests
+
+- name: Disable transparent huge pages
+  shell: echo never > /sys/kernel/mm/transparent_hugepage/defrag
+
+- name: User limit configuration
+  template:
+    src: 90-nproc.conf.j2
+    dest: /etc/security/limits.d/90-nproc.conf
+
+- name: Configure maximum map count
+  sysctl:
+    name: vm.max_map_count
+    value: '1048575'
+    sysctl_set: yes
+
+- name: Reboot system
+  shell: sleep 2 && shutdown -r now
+  async: 5
+  poll: 0
+  when: disable_selinux.changed
+
+- name: Reestablishing the connection with the hosts
+  wait_for_connection:
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 300
+  when: disable_selinux.changed
+
+- name: Install OpenJDK 8
+  yum:
+    name: java-1.8.0-openjdk
+    state: present

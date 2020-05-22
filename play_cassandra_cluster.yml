@@ -1,0 +1,6 @@
+- hosts: cassandra_cluster
+  become: yes
+  roles:
+    - cassandra_configure_system
+    - cassandra_install
+    - cassandra_configure_cluster
